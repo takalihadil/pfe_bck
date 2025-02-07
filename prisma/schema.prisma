@@ -1,0 +1,48 @@
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  id_users      String    @unique @map("id_users") // Reference to Supabase auth table
+  phone         String?   @unique
+  role          String    @default("user")
+  fullname      String
+  created_at    DateTime  @default(now())
+  email         String    @unique
+  password      String
+  profile_photo String?
+  projects      Project[] @relation("UserProjects") // Define the relation name here
+  
+  
+}
+
+model Project {
+  id          String  @id @default(uuid())
+  name        String
+  description String?
+  userId      String
+  user        User    @relation("UserProjects", fields: [userId], references: [id]) // Specify the same relation name
+  tasks       Task[]  @relation("ProjectTasks") // Add relation to Task model
+ 
+
+  @@map("projects")
+}
+model Task {
+  id             String   @id @default(uuid())
+  title          String
+  description    String?
+  status         String   @default("pending") // Default status
+  projectId      String
+  estimatedHours Float? // Optional field for estimated hours
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  project        Project  @relation("ProjectTasks", fields: [projectId], references: [id]) // Specify the relation name
+}
+
