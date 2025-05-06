@@ -1,4 +1,3 @@
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,41 +7,462 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum ProfileVisibility {
+  PUBLIC
+  PRIVATE
+}
 model User {
-  id            String    @id @default(cuid())
-  id_users      String    @unique @map("id_users") // Reference to Supabase auth table
-  phone         String?   @unique
-  role          String    @default("user")
+  id            String         @id @default(cuid())
+  id_users      String         @unique @map("id_users")
+  phone         String?        @unique
+  role          String         @default("user")
   fullname      String
-  created_at    DateTime  @default(now())
-  email         String    @unique
-  password      String
+  created_at    DateTime       @default(now())
+  email         String         @unique
+  password      String?
   profile_photo String?
-  projects      Project[] @relation("UserProjects") // Define the relation name here
-  
-  
+  bio           String?
+  location      String?
+  website       String?
+  profileVisibility ProfileVisibility @default(PUBLIC) 
+  projects      Project[]      @relation("UserProjects")
+  transactions  Transaction[]  @relation("UserTransactions")
+  habits        Habit[]        @relation("UserHabits")
+  goals         Goal[]         @relation("UserGoals")
+  posts         Post[]         @relation("UserPosts")
+  comments      PostComment[]  @relation("UserComments")
+  reactions     PostReaction[] @relation("UserReactions")
+  chats         UserChat[]     @relation("UserChats")
+  admin         Chat[]         @relation("ChatAdmin")
+  messages      Message[]      @relation("UserMessages")
+  notifications Notification[] @relation("UserNotifications")
+  followedBy    UserFollower[] @relation("follower")
+  following     UserFollower[] @relation("following")
+  readReceipts  ReadReceipt[]  @relation("Reader")
+  delete        MessageDelete[]  @relation("UserDelete")
+  callParticipations CallParticipant[] @relation("UserCalls")
 }
 
+
+
+//table de jointure 
+model UserFollower {
+  follower      User     @relation("follower", fields: [followerId], references: [id])
+  followerId    String
+  following     User     @relation("following", fields: [followingId], references: [id])
+  followingId   String
+  createdAt     DateTime @default(now())
+
+  @@id([followerId, followingId])
+  @@map("user_followers")
+}
 model Project {
   id          String  @id @default(uuid())
   name        String
   description String?
   userId      String
-  user        User    @relation("UserProjects", fields: [userId], references: [id]) // Specify the same relation name
-  tasks       Task[]  @relation("ProjectTasks") // Add relation to Task model
- 
-
+  user        User    @relation("UserProjects", fields: [userId], references: [id])
+  tasks       Task[]  @relation("ProjectTasks")
   @@map("projects")
 }
+
 model Task {
   id             String   @id @default(uuid())
   title          String
   description    String?
-  status         String   @default("pending") // Default status
+  status         String   @default("pending")
   projectId      String
-  estimatedHours Float? // Optional field for estimated hours
+  estimatedHours Float?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-  project        Project  @relation("ProjectTasks", fields: [projectId], references: [id]) // Specify the relation name
+  project        Project  @relation("ProjectTasks", fields: [projectId], references: [id])
 }
 
+model Transaction {
+  id             String         @id @default(uuid())
+  userId         String
+  date           DateTime       @default(now())
+  description    String
+  category       Category
+  type           TransactionType
+  amount         Float
+  source         Source?
+  feeDeductions  Float?
+  taxDeductions  Float?
+  user           User           @relation("UserTransactions", fields: [userId], references: [id])
+  @@map("transactions")
+}
+
+enum Category {
+  ProductSales
+  Service
+  Infrastructure
+  Tools
+  Marketing
+  OfficeExpenses
+  Travel
+  Consulting
+}
+
+enum TransactionType {
+  Income
+  Expense
+}
+
+enum Source {
+  AppStore
+  GooglePlay
+  Stripe
+  Paypal
+  DirectDeposit
+  AWS
+  DigitalOcean
+  Freelancing
+}
+
+model Habit {
+  id           String    @id @default(uuid())
+  userId       String
+  goalId       String?
+  name         String
+  type         HabitType
+  description  String?
+  weeklyTarget Int       @default(0)
+  status       HabitStatus @default(NotStarted)
+  streak       Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  user         User      @relation("UserHabits", fields: [userId], references: [id_users])
+  goal         Goal?     @relation("GoalHabits", fields: [goalId], references: [id])
+  completions  HabitCompletion[]
+  badges       Badge[]   @relation("HabitBadges")
+  notifications Notification[] @relation("NotificationHabit")
+
+  @@map("habits")
+}
+model Goal {
+  id          String   @id @default(uuid())
+  userId      String
+  title       String
+  description String?
+  deadline    DateTime?
+  status      GoalStatus @default(InProgress)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation("UserGoals", fields: [userId], references: [id_users])
+  habits      Habit[]  @relation("GoalHabits")
+
+  @@map("goals")
+}
+enum GoalStatus {
+  NotStarted
+  InProgress
+  Paused
+  Completed
+}
+model Badge {
+  id          String   @id @default(uuid())
+  habitId     String
+  type        BadgeType
+  name        String
+  description String
+  earnedAt    DateTime @default(now())
+  habit       Habit    @relation("HabitBadges", fields: [habitId], references: [id])
+
+  @@map("badges")
+}
+enum BadgeType {
+  Streak
+  Consistency
+  Achievement
+  Milestone
+}
+
+ model HabitCompletion {
+  id        String   @id @default(uuid())
+  habitId   String
+  date      DateTime @default(now())
+  completed Boolean  @default(true)
+  notes     String?
+  habit     Habit    @relation(fields: [habitId], references: [id])
+
+  @@map("habit_completions")
+}
+
+
+enum HabitType {
+  GoodHabit
+  BadHabit
+}
+
+enum HabitStatus {
+  NotStarted
+  InProgress
+  Paused
+  Completed
+}
+
+model Post {
+  id         String         @id @default(uuid())
+  content    String
+  mediaType  MediaType?
+  privacy    Privacy        @default(Public)
+  authorId   String
+  shareCount Int            @default(0)
+  isEdited   Boolean?        @default(false)
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  user       User           @relation("UserPosts", fields: [authorId], references: [id])
+  reactions  PostReaction[] @relation("PostReactions")
+  comments   PostComment[]  @relation("PostComments")
+  media      PostMedia[]    @relation("PostsMedia")
+  notifications       Notification[]    @relation("NotificationPost")
+}
+
+model PostMedia {
+  id        String  @id @default(uuid())
+  type      MediaType
+  url       String
+  fileName  String?
+  fileSize  Float?
+  width     Int?
+  height    Int?
+  duration  Float?
+  postId    String
+  post      Post    @relation("PostsMedia", fields: [postId], references: [id])
+  @@map("post_media")
+}
+
+enum MediaType {
+  Audio
+  Video
+  Image
+}
+
+model PostReaction {
+  id        String      @id @default(uuid())
+  type      ReactionType
+  userId    String
+  postId    String?
+  commentId String?
+  messageId String?
+  
+
+
+  post      Post?       @relation("PostReactions", fields: [postId], references: [id])
+  user      User        @relation("UserReactions", fields: [userId], references:[id])
+  message   Message?    @relation("MessageReactions", fields: [messageId], references: [id])
+  comment   PostComment? @relation("CommentReactions", fields: [commentId], references: [id])
+ @@unique([userId, postId], name: "user_post_unique")
+  @@unique([userId, commentId], name: "user_comment_unique")
+  @@unique([userId, messageId], name: "user_message_unique")
+  @@map("post_reactions")
+}
+
+enum ReactionType {
+  Like
+  Love
+  Haha
+  Wow
+  Sad
+  Angry
+}
+
+model PostComment {
+  id        String         @id @default(uuid())
+  content   String
+  authorId  String
+  author    User           @relation("UserComments", fields: [authorId], references: [id])
+  postId    String
+  parent    PostComment?   @relation("Reply", fields: [parentId], references: [id])
+  parentId  String?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  post      Post           @relation("PostComments", fields: [postId], references: [id])
+  reactions PostReaction[] @relation("CommentReactions")
+  replies   PostComment[]  @relation("Reply")
+  notifications    Notification[] @relation("NotificationComment")
+  @@map("post_comments")
+}
+
+enum Privacy {
+  Public
+  Private
+  Restricted
+}
+
+model Chat {
+  id          String     @id @default(uuid())
+  name        String?    // Nom optionnel pour les groupes
+  isGroup     Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  messages    Message[]  @relation("ChatMessages")
+  users       UserChat[] @relation("ChatUsers")
+  admin       User?      @relation("ChatAdmin", fields: [adminId], references: [id])
+  adminId     String?
+  @@map("chats")
+}
+//table de jointure 
+model UserChat {
+  userId    String
+  chatId    String
+  user      User    @relation("UserChats", fields: [userId], references: [id])
+  chat      Chat    @relation("ChatUsers", fields: [chatId], references: [id])
+  joinedAt  DateTime @default(now())
+  @@id([userId, chatId])
+  @@map("user_chats")
+}
+
+
+
+
+model Message {
+  id        String         @id @default(uuid())
+  content   String?
+  type      MessageType
+  status    MessageStatus @default(SENT)
+  category  MessageCategory?  
+  senderId  String
+  chatId    String
+  parentId  String?
+  deletedForEveryone Boolean  @default(false) 
+  deletions         MessageDelete[]   @relation("MessageDelete")
+  call      Call[]         @relation("MessageCall")
+  sender    User          @relation("UserMessages", fields: [senderId], references: [id])
+  chat      Chat          @relation("ChatMessages", fields: [chatId], references: [id])
+  reactions PostReaction[] @relation("MessageReactions")
+  attachment Attachment[]   @relation("MessageAttachment")
+  readReceipts ReadReceipt[] @relation("MessageRead")
+  replies   Message[]     @relation("MessageReplies")
+  parent    Message?      @relation("MessageReplies", fields: [parentId], references: [id])
+  
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  @@map("messages")
+}
+enum MessageType {
+  TEXT
+  IMAGE
+  VIDEO
+  AUDIO
+  FILE
+  LINK
+  CALL
+}
+enum MessageStatus {
+  SENDING
+  DELIVERED
+  SENT
+  SEEN
+  FAILED
+  EDITED
+}
+enum MessageCategory {
+  NORMAL
+  SPAM
+}
+model ReadReceipt {
+  id        String   @id @default(uuid())
+  message   Message  @relation("MessageRead", fields: [messageId], references: [id])
+  messageId String
+  user      User     @relation("Reader", fields: [userId], references: [id])
+  userId    String
+  readAt    DateTime? @default(now())
+
+ @@unique([userId, messageId], name: "userId_messageId")
+  @@map("read_receipts")
+}
+model Attachment {
+  id          String   @id @default(uuid())
+  url         String
+  type        AttachmentType
+  fileName    String?
+  fileSize    Float?
+  width       Int?
+  height      Int?
+  duration    Float?
+  message     Message  @relation("MessageAttachment", fields: [messageId], references: [id])
+  messageId   String
+  @@map("attachments")
+}
+model MessageDelete {
+  id        String   @id @default(uuid())
+  user      User     @relation("UserDelete",fields: [userId], references: [id])
+  userId    String
+  message   Message  @relation( "MessageDelete",fields: [messageId], references: [id])
+  messageId String
+  deletedAt DateTime @default(now())
+
+  @@unique([userId, messageId])
+  @@map("message_deletes")
+}
+enum AttachmentType {
+  Image
+  Video
+  Audio
+  Document
+}
+enum CallStatus {
+ ONGOING
+  COMPLETED
+  MISSED
+  DECLINED
+  FAILED
+}
+
+model Call {
+  id          String   @id @default(uuid())
+  messageId   String
+  type        CallType
+  duration    Int      // secondes
+  status      CallStatus
+  message     Message   @relation("MessageCall", fields: [messageId], references: [id])
+  participants CallParticipant[] @relation("CallParticipants")
+  startedAt   DateTime @default(now())
+  endedAt     DateTime?
+}
+enum CallType {
+  VOICE
+  VIDEO
+  GROUP_VOICE
+  GROUP_VIDEO
+}
+
+//table de jointure 
+model CallParticipant {
+  call        Call     @relation("CallParticipants", fields: [callId], references: [id])
+  callId      String
+  user        User     @relation("UserCalls", fields: [userId], references: [id])
+  userId      String
+  joinedAt    DateTime @default(now())
+  
+  @@id([callId, userId])
+  @@map("call_participants")
+}
+
+model Notification {
+  id          String   @id @default(uuid())
+  type        NotificationType 
+  content     String   
+  isRead      Boolean  @default(false) 
+  userId      String   @map("user_id") 
+  habitId     String?  @map("habit_id") 
+  postId      String?  @map("post_id") 
+  commentId   String?  @map("comment_id") 
+  user        User     @relation("UserNotifications", fields: [userId], references: [id])
+  post        Post?    @relation("NotificationPost", fields: [postId], references: [id])
+  comment     PostComment? @relation("NotificationComment", fields: [commentId], references: [id])
+  habit       Habit?   @relation("NotificationHabit", fields: [habitId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@map("notifications")
+}
+
+enum NotificationType {
+  Mention
+  Like
+  Comment
+  Follow
+  HabitReminder
+}

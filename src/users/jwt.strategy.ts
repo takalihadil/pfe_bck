@@ -12,13 +12,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-      secretOrKey: configService.get<string>('JWT_SECRET'), // Utilisation d'une variable d'environnement
+      secretOrKey: configService.get<string>('JWT_SECRET'),
     });
   }
 
   async validate(payload: { sub: string; email: string }) {
     const user = await this.prisma.user.findUnique({
-      where: { id_users: payload.sub }, // Correction ici
+      where: { id_users: payload.sub }, 
     });
     if (!user) {
       throw new Error('User not found');

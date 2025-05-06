@@ -1,0 +1,17 @@
+sequenceDiagram
+    participant User as Utilisateur
+    participant Controller as MessagesController
+    participant Service as MessagesService
+    participant Prisma as PrismaService
+    participant Supabase as SupabaseService
+
+    Note over User, Supabase: Authentification requise pour toutes les actions
+
+    User->>Controller: Envoie une requête (POST/PUT/DELETE)
+    Controller->>Service: Appelle le service correspondant
+    Service->>Prisma: Interagit avec la base de données
+    Prisma-->>Service: Retourne les données
+    Service->>Supabase: Notifie les clients (si nécessaire)
+    Supabase-->>Service: Confirmation
+    Service-->>Controller: Retourne la réponse
+    Controller-->>User: Renvoie le résultat
